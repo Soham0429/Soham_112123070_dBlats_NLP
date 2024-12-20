@@ -1,0 +1,428 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "398d6874-61dd-4041-ae69-e8aa0bc18da3",
+   "metadata": {},
+   "source": [
+    "Import the libraries"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "6882ba2e-18dd-481b-9936-624ee484a138",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import spacy\n",
+    "from spacy.lang.en.stop_words import STOP_WORDS\n",
+    "from string import punctuation\n",
+    "from heapq import nlargest\n",
+    "from transformers import pipeline\n",
+    "from transformers import BartForConditionalGeneration, BartTokenizer"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "39120368-0a75-4eff-b16e-097b8fca155c",
+   "metadata": {},
+   "source": [
+    "Get youtube transcript from youtube API"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "c9856811-737d-46e0-88d4-0c377816adde",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from youtube_transcript_api import YouTubeTranscriptApi\n",
+    "youtube_video=input(\"Paste YouTube video link\")\n",
+    "video_id=youtube_video.split(\"=\")[1]\n",
+    "YouTubeTranscriptApi.get_transcript(video_id)\n",
+    "transcript=YouTubeTranscriptApi.get_transcript(video_id)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c3f07bd2-0e52-485b-abfe-e54ed333ffbe",
+   "metadata": {},
+   "source": [
+    "Get text from transcript"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "1036dfaf-37b9-440d-b1f8-3ebca78c7dd8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "text=\"\"\n",
+    "for i in transcript:\n",
+    "    text+=i['text']"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "cc89e4db-1256-45b9-9563-2881a76b9510",
+   "metadata": {},
+   "source": [
+    "Correcting mistakes"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a7dc73cf-583c-41d3-841a-60bfbd65100f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import wordninja\n",
+    "text=\" \".join(wordninja.split(text))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a8f6e84c-d87e-46ec-85a4-cc915a7cb16e",
+   "metadata": {},
+   "source": [
+    "Tokenizing words"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "978e7d26-883a-4eae-b54b-39599820460e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "stopwords=list(STOP_WORDS)\n",
+    "nlp = spacy.load(\"en_core_web_sm\")\n",
+    "doc=nlp(text)\n",
+    "tokens=[token.text for token in doc]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a6cc646d-dd7e-4f77-a838-0b961eeafb14",
+   "metadata": {},
+   "source": [
+    "Removing stopwords and calculating word frequencies"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b309c6ad-000a-47ca-b173-62b7b1e610ca",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "word_frequencies={}\n",
+    "for word in doc:\n",
+    "    if word.text.lower() not in stopwords:\n",
+    "        if word.text.lower() not in punctuation:\n",
+    "            if word.text not in word_frequencies.keys():\n",
+    "                word_frequencies[word.text]=1\n",
+    "            else:\n",
+    "                word_frequencies[word.text]+=1"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "67ffd74d-cd99-4b7a-beea-88d4f91ae748",
+   "metadata": {},
+   "source": [
+    "Get maximum frequency of words"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "3b8ca205-8451-403c-89fb-4d5051ebcd3a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "max_frequencies=max(word_frequencies.values())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "26c45987-cd02-4145-85f6-84884b7e6f06",
+   "metadata": {},
+   "source": [
+    "Normalizing frequencies"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "03efb071-f9e2-4b1f-8d88-ba77bb987c4f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "for word in word_frequencies.keys():\n",
+    "    word_frequencies[word]=word_frequencies[word]/max_frequencies"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d8307490-2aaf-493b-aa61-eaa12b34cc8b",
+   "metadata": {},
+   "source": [
+    "Tokenizing sentences"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "4073c5b7-272a-464d-8d94-2f5fd5e4af19",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "sentence_tokens=[sent for sent in doc.sents]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "685d9239-f953-4f42-9899-b5b04521075a",
+   "metadata": {},
+   "source": [
+    "Calculating sentence scores for each sentence"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "feacab97-668d-4705-b3ac-68e312727b60",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "sentence_scores={}\n",
+    "for sent in sentence_tokens:\n",
+    "    for word in sent:\n",
+    "        if word.text.lower() in word_frequencies.keys():\n",
+    "            if sent not in sentence_scores.keys():\n",
+    "                sentence_scores[sent]=word_frequencies[word.text.lower()]\n",
+    "            else:\n",
+    "                sentence_scores[sent]+=word_frequencies[word.text.lower()]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "542e9983-327f-49db-847b-30018749c3fa",
+   "metadata": {},
+   "source": [
+    "Taking 50% of the important sentences"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "397a3284-eb20-4a00-ace0-c9a4f0a45f7d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "length=len(sentence_tokens)*0.5"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "958c0814-46f5-486c-bd9e-6ccf55fe93dd",
+   "metadata": {},
+   "source": [
+    "Generating final text to summarize"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "63b8d46c-ed03-4737-a303-764579e01e45",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "final_text=nlargest(int(length), sentence_scores, key=sentence_scores.get)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "53a744bb-86a5-44d5-a4b4-86f2543f1038",
+   "metadata": {},
+   "source": [
+    "Final text"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "f7938fd5-49af-43cc-97b7-1cc88472d49e",
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "final=\" \".join([word.text for word in final_text ])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "77b062c4-1768-4adf-a1a9-0ae590b2770a",
+   "metadata": {},
+   "source": [
+    "Generating final summary"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a870601e-99cf-4e15-a2c9-985765b13da2",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "summarizer=pipeline('summarization')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "32579795-2612-480c-b8e4-64a6c2405903",
+   "metadata": {},
+   "source": [
+    "Breaking down text to smaller chunks"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "fdba4ee7-5522-4952-a94e-47d98dd6f0de",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "num_iters=int(len(final)/1000)\n",
+    "sum_text=[]\n",
+    "for i in range(0,num_iters+1):\n",
+    "    start=0\n",
+    "    start=i*1000\n",
+    "    end=(i+1)*1000\n",
+    "    out=summarizer(final[start:end],min_length=1)\n",
+    "    out=out[0]\n",
+    "    out=out['summary_text']\n",
+    "    sum_text.append(out)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "275e39b2-1b07-4f51-92fe-625646afe38a",
+   "metadata": {},
+   "source": [
+    "Printing Summary"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "4ce6b963-4351-4301-94b2-b5ee64af538b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "summary=\"\".join(sum_text)\n",
+    "print(summary)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a1fbd50d-2b8a-4932-9325-64a2cbd0032f",
+   "metadata": {},
+   "source": [
+    "Evaluating efficiency of summary"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "c6ae6ed2-3e27-44ed-a609-88e8c20ab769",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from rouge_score import rouge_scorer\n",
+    "\n",
+    "def evaluate_summary(reference, generated):\n",
+    "    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)\n",
+    "    scores = scorer.score(reference, generated)\n",
+    "    return scores\n",
+    "\n",
+    "reference = text\n",
+    "generated = summary\n",
+    "print(evaluate_summary(reference, generated))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "7fc5a40b-d3b8-473a-bda3-2c9d61b931e9",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from textstat import flesch_reading_ease\n",
+    "\n",
+    "summary = summary\n",
+    "score = flesch_reading_ease(summary)\n",
+    "print(f\"Reading Ease Score: {score}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a2440bba-81e3-4a18-893e-17228e6d8b24",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "9d7b7fc5-c224-43ba-a8b8-b21814915341",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "6d4701f3-33ab-417f-bb77-bfe3f9b93cf4",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a4b7809b-45b3-493c-b97e-4c02866a404f",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
