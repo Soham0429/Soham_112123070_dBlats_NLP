@@ -1,6 +1,6 @@
 # YouTube Transcript Summarizer
 
-This Python script extracts, processes, and summarizes the transcript of a YouTube video using natural language processing (NLP) techniques. The summarized text is generated and evaluated for readability and quality.
+This Python script extracts, processes, and summarizes the transcript of a YouTube video using natural language processing (NLP) techniques. The summarized text is generated for enhancing content consumption and knowledge acquisition.
 
 ## Features
 
@@ -12,7 +12,7 @@ This Python script extracts, processes, and summarizes the transcript of a YouTu
 
 ## Prerequisites
 
-Before running the script, ensure you have the following installed:
+Before running the script, install:
 
 - Python 3.7 or higher
 - Jupyter Notebook
@@ -24,7 +24,7 @@ Before running the script, ensure you have the following installed:
   - `rouge-score`
   - `textstat`
 
-You can install the dependencies using pip:
+The dependencies can be installed using pip:
 ```bash
 pip install spacy 
 pip install transformers 
