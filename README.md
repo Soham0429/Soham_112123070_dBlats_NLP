@@ -1,6 +1,6 @@
 # YouTube Transcript Summarizer
 
-This Python script extracts, processes, and summarizes the transcript of a YouTube video using natural language processing (NLP) techniques. The summarized text is generated for enhancing content consumption and knowledge acquisition.
+This Python code extracts, processes, and summarizes the transcript of a YouTube video using natural language processing (NLP) techniques. The summarized text is generated for enhancing content consumption and knowledge acquisition.
 
 ## Features
 
@@ -104,3 +104,4 @@ Run the script and follow these prompts:
 ## Author
 
 Soham Singh Chouhan
+112123070
